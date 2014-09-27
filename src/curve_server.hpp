@@ -70,6 +70,10 @@ namespace zmq
 
         enum state_t {
             expect_hello,
+            expect_hello2,
+            expect_hello3,
+            send_metadata_size,
+            send_full_metadata,
             send_welcome,
             expect_initiate,
             expect_zap_reply,
@@ -95,6 +99,10 @@ namespace zmq
         //  Our secret key (s)
         uint8_t secret_key [crypto_box_SECRETKEYBYTES];
 
+        //  Our secret key (s')
+        uint8_t public_key [crypto_box_PUBLICKEYBYTES];
+
+
         //  Our short-term public key (S')
         uint8_t cn_public [crypto_box_PUBLICKEYBYTES];
 
@@ -110,7 +118,10 @@ namespace zmq
         //  Intermediary buffer used to speed up boxing and unboxing.
         uint8_t cn_precom [crypto_box_BEFORENMBYTES];
 
+        uint8_t metadata_size;
+
         int process_hello (msg_t *msg_);
+        int produce_metadata (msg_t *msg_);
         int produce_welcome (msg_t *msg_);
         int process_initiate (msg_t *msg_);
         int produce_ready (msg_t *msg_);

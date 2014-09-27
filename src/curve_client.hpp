@@ -52,7 +52,9 @@ namespace zmq
     {
     public:
 
-        curve_client_t (const options_t &options_);
+        curve_client_t (session_base_t *session_, 
+                         const std::string &peer_address_,
+                         const options_t &options_);
         virtual ~curve_client_t ();
 
         // mechanism implementation
@@ -60,12 +62,18 @@ namespace zmq
         virtual int process_handshake_command (msg_t *msg_);
         virtual int encode (msg_t *msg_);
         virtual int decode (msg_t *msg_);
+        virtual int zap_msg_available ();
         virtual status_t status () const;
 
     private:
 
         enum state_t {
             send_hello,
+            expect_welcome_or_metadata,
+            send_big_hello,
+            expect_metadata,
+            expect_zap_reply,
+            send_final_hello,
             expect_welcome,
             send_initiate,
             expect_ready,
@@ -73,8 +81,14 @@ namespace zmq
             connected
         };
 
+        session_base_t * const session;
+        const std::string peer_address;
+
         //  Current FSM state
         state_t state;
+
+        //  Status code as received from ZAP handler
+        std::string status_code;
 
         //  Our public key (C)
         uint8_t public_key [crypto_box_PUBLICKEYBYTES];
@@ -104,11 +118,19 @@ namespace zmq
         uint64_t cn_nonce;
         uint64_t cn_peer_nonce;
 
+        uint32_t metadata_size;
+        bool curve_1_1;
+
         int produce_hello (msg_t *msg_);
         int process_welcome (const uint8_t *cmd_data, size_t data_size);
+        int process_metadata_size (const uint8_t *cmd_data, size_t data_size);
+        int process_metadata( const uint8_t *cmd_data, size_t data_size);
         int produce_initiate (msg_t *msg_);
         int process_ready (const uint8_t *cmd_data, size_t data_size);
         int process_error (const uint8_t *cmd_data, size_t data_size);
+
+        void send_zap_request (const uint8_t *key, const uint8_t *metadata, const uint32_t metadata_size);
+        int receive_and_process_zap_reply ();
         mutex_t sync;
     };
 

@@ -308,6 +308,10 @@ ZMQ_EXPORT const char *zmq_msg_gets (zmq_msg_t *msg, const char *property);
 #define ZMQ_IDENTITY_FD 67
 #define ZMQ_SOCKS_PROXY 68
 #define ZMQ_XPUB_NODROP 69
+#define ZMQ_ZMTP_METADATA 70
+#define ZMQ_ZMTP_MAX_METADATA_SIZE 71
+#define ZMQ_CURVE_PRE_METADATA 72
+#define ZMQ_ZAP_CURVE_ENABLE_METADATA 73
 
 /*  Message options                                                           */
 #define ZMQ_MORE 1

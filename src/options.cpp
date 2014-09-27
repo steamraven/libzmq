@@ -56,7 +56,9 @@ zmq::options_t::options_t () :
     gss_plaintext (false),
     socket_id (0),
     conflate (false),
-    handshake_ivl (30000)
+    handshake_ivl (30000),
+    zmtp_max_metadata_size(0),
+    zap_curve_enable_metadata(false)
 {
 }
 
@@ -442,6 +444,18 @@ int zmq::options_t::setsockopt (int option_, const void *optval_,
                 return 0;
             }
             break;
+        case ZMQ_CURVE_PRE_METADATA:
+            curve_pre_metadata.assign( (const char *) optval_, optvallen_);
+            mechanism = ZMQ_CURVE;  ///????
+            return 0;
+            break;
+
+        case ZMQ_ZAP_CURVE_ENABLE_METADATA:
+            if (is_int && (value == 0 || value == 1)) {
+                zap_curve_enable_metadata = (value != 0);
+            }
+            break;
+
 #       endif
 
         case ZMQ_CONFLATE:
@@ -492,6 +506,18 @@ int zmq::options_t::setsockopt (int option_, const void *optval_,
                 return 0;
             }
             break;
+
+        case ZMQ_ZMTP_METADATA:
+            zmtp_metadata.assign ((const char *) optval_, optvallen_);
+            return 0;
+            break;
+        case ZMQ_ZMTP_MAX_METADATA_SIZE:
+            if (is_int && (value == -1 || value >= 0)) {
+                zmtp_max_metadata_size = value;
+                return 0;
+            }
+            break;
+
 
         default:
 #if defined (ZMQ_ACT_MILITANT)

@@ -179,6 +179,21 @@ namespace zmq
         //  close socket.  Default is 30 secs.  0 means no handshake timeout.
         int handshake_ivl;
 
+
+        // Metadata for zmtp connections
+        std::string zmtp_metadata;
+
+        // Maximum metadata to receive from client
+        int zmtp_max_metadata_size;
+
+        // Unencrypted pre-metadata for initial curve connections
+        std::string curve_pre_metadata;
+
+        // enable metadata in zap for curve mechanism
+        bool zap_curve_enable_metadata;
+
+
+
     };
 }
 

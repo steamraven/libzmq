@@ -44,6 +44,10 @@ zmq::curve_server_t::curve_server_t (session_base_t *session_,
 {
     //  Fetch our secret key from socket options
     memcpy (secret_key, options_.curve_secret_key, crypto_box_SECRETKEYBYTES);
+
+    //  Fetch our public key from socket options
+    memcpy (public_key, options_.curve_public_key, crypto_box_PUBLICKEYBYTES);
+
     scoped_lock_t lock (sync);
 #if defined(HAVE_TWEETNACL)
     // allow opening of /dev/urandom
@@ -68,6 +72,16 @@ int zmq::curve_server_t::next_handshake_command (msg_t *msg_)
     int rc = 0;
 
     switch (state) {
+        case send_metadata_size:
+            rc = produce_metadata (msg_);
+            if (rc == 0)
+                state = expect_hello2;
+            break;
+        case send_full_metadata:
+            rc = produce_metadata (msg_);
+            if (rc == 0)
+                state = expect_hello3;
+            break;
         case send_welcome:
             rc = produce_welcome (msg_);
             if (rc == 0)
@@ -97,6 +111,8 @@ int zmq::curve_server_t::process_handshake_command (msg_t *msg_)
 
     switch (state) {
         case expect_hello:
+        case expect_hello2:
+        case expect_hello3:
             rc = process_hello (msg_);
             break;
         case expect_initiate:
@@ -264,7 +280,7 @@ zmq::mechanism_t::status_t zmq::curve_server_t::status () const
 
 int zmq::curve_server_t::process_hello (msg_t *msg_)
 {
-    if (msg_->size () != 200) {
+    if (msg_->size () != 200 || msg_->size() <= options.curve_pre_metadata.size() + 45) {
         //  Temporary support for security debugging
         puts ("CURVE I: client HELLO is not correct size");
         errno = EPROTO;
@@ -282,7 +298,7 @@ int zmq::curve_server_t::process_hello (msg_t *msg_)
     const uint8_t major = hello [6];
     const uint8_t minor = hello [7];
 
-    if (major != 1 || minor != 0) {
+    if (major != 1 || minor != 0 || minor != 1) {
         //  Temporary support for security debugging
         puts ("CURVE I: client HELLO has unknown version number");
         errno = EPROTO;
@@ -308,14 +324,44 @@ int zmq::curve_server_t::process_hello (msg_t *msg_)
                               sizeof hello_box,
                               hello_nonce, cn_client, secret_key);
     if (rc != 0) {
-        //  Temporary support for security debugging
-        puts ("CURVE I: cannot open client HELLO -- wrong server key?");
-        errno = EPROTO;
-        return -1;
+        if (minor == 0 || state == hello3) {
+            //  Temporary support for security debugging
+            puts ("CURVE I: cannot open client HELLO -- wrong server key?");
+            errno = EPROTO;
+            return -1;
+        }
+        else {
+            metadata_size = msg_->size() - 45;
+            if (state == hello1) {
+                state = send_metadata_size;
+            }
+            else if (state == hello2) {
+                state = send_full_metadata;
+            }
+            else {
+                //  Temporary support for security debugging
+                puts ("CURVE I: invalid state in processing HELLO");
+                errno = EPROTO;
+                return -1;
+            }
+                
+        }
     }
 
     state = send_welcome;
     return rc;
+}
+
+int zmq::curve_server_t::produce_metadata (msg_t *msg_) {
+    rc = msg_->init_size (45 + metadata_size);
+    errno_assert (rc == 0);
+
+    uint8_t * const metadata = static_cast <uint8_t *> (msg_->data ());
+    memcpy (welcome, "\x08METADATA", 9);
+    memcpy (welcome + 9, public_key, crypto_box_PUBLICKEYBYTES);
+    memcpy (welcome + 9 + crypto_box_PUBLICKEYBYTES, metadata_size);
+
+    return 0;
 }
 
 int zmq::curve_server_t::produce_welcome (msg_t *msg_)
